@@ -1,0 +1,14 @@
+Destroyer is installed as {{ include "destroyer.fullname" . }}.
+
+Dry-run: {{ .Values.redeploy.dryRun }}
+Approved namespaces: {{ join ", " .Values.redeploy.allowedNamespaces | default "none" }}
+
+Check health:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "destroyer.fullname" . }} 8080:8080
+  curl http://127.0.0.1:8080/healthz
+
+View logs:
+  kubectl -n {{ .Release.Namespace }} logs deployment/{{ include "destroyer.fullname" . }}
+
+Keep the Service internal. Set redeploy.dryRun=false only after testing the
+allowlist and notifications against disposable workloads.

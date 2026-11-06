@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run integration tests
+        run: python test_destroyer_integration.py
+        env:
+          MOCK_K8S_PORT: "19000"
+          DESTROYER_PORT: "18080"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set release names
+        id: names
+        shell: bash
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "charts=oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR for the image
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create image tags
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.names.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ github.ref_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.ref_name }}
+            type=raw,value=latest
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+
+      - name: Package and publish Helm chart
+        shell: bash
+        env:
+          IMAGE_REPOSITORY: ${{ steps.names.outputs.image }}
+          CHART_REPOSITORY: ${{ steps.names.outputs.charts }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+
+          helm lint charts/destroyer \
+            --set "image.repository=${IMAGE_REPOSITORY}" \
+            --set "image.tag=${version}" \
+            --set redeploy.enabled=true \
+            --set 'redeploy.allowedNamespaces[0]=replace-me'
+
+          mkdir -p dist
+          python generate_deployment.py \
+            --namespace destroyer-system \
+            --output dist/install.yaml
+          helm package charts/destroyer \
+            --version "${version}" \
+            --app-version "${version}" \
+            --destination dist
+
+          printf '%s' "${REGISTRY_TOKEN}" |
+            helm registry login ghcr.io \
+              --username "${GITHUB_ACTOR}" \
+              --password-stdin
+          helm push "dist/destroyer-${version}.tgz" "${CHART_REPOSITORY}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            "dist/destroyer-${version}.tgz" \
+            dist/install.yaml

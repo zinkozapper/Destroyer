@@ -1,0 +1,28 @@
+# Copy to values-rancher-dev.local.yaml (gitignored); set an image your cluster can pull.
+image:
+  repository: registry.example.com/team/destroyer
+  tag: dev
+  pullPolicy: Always
+
+# Uncomment when the registry requires authentication and this Secret exists
+# in the destroyer-system namespace.
+# imagePullSecrets:
+#   - name: registry-pull
+
+redeploy:
+  # Test only: enabling this creates a cluster-scoped pod get/delete role.
+  enabled: true
+  dryRun: true
+  allowedNamespaces:
+    - destroyer-test
+  excludedNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - neuvector
+  minAgeSeconds: 15
+
+rbac:
+  scope: cluster
+
+debug: true

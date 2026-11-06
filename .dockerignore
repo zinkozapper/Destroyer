@@ -1,0 +1,12 @@
+.git
+.github
+.kilo
+.codex
+.venv
+__pycache__
+*.pyc
+charts
+README.md
+LICENSE
+generate_deployment.py
+test_destroyer_integration.py

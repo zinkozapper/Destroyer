@@ -1,0 +1,3 @@
+{{- if and .Values.redeploy.enabled (not .Values.redeploy.allowedNamespaces) }}
+{{- fail "redeploy.allowedNamespaces must contain at least one namespace when redeploy.enabled is true" }}
+{{- end }}

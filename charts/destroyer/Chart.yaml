@@ -1,0 +1,17 @@
+apiVersion: v2
+name: destroyer
+description: Kubernetes webhook listener for responding to container security alerts
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.23.0-0"
+home: https://github.com/zinkozapper/Destroyer
+sources:
+  - https://github.com/zinkozapper/Destroyer
+annotations:
+  artifacthub.io/license: Unlicense
+keywords:
+  - kubernetes
+  - security
+  - webhook
+  - neuvector

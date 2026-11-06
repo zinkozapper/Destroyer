@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python sources
+        run: python -m py_compile Destroyer.py generate_deployment.py test_destroyer_integration.py
+
+      - name: Run integration tests
+        run: python test_destroyer_integration.py
+        env:
+          MOCK_K8S_PORT: "19000"
+          DESTROYER_PORT: "18080"
+
+      - name: Generate Kubernetes manifests
+        run: |
+          python generate_deployment.py \
+            --namespace destroyer-test \
+            --output "${RUNNER_TEMP}/install.yaml"
+          python generate_deployment.py \
+            --namespace destroyer-test \
+            --enable-redeploy \
+            --allowed-namespaces destroyer-test \
+            --output "${RUNNER_TEMP}/install-enabled.yaml"
+
+      - name: Build container
+        run: docker build --tag destroyer:ci .
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart defaults
+        run: helm lint charts/destroyer
+
+      - name: Lint Helm chart with redeploy enabled
+        run: >-
+          helm lint charts/destroyer
+          --set redeploy.enabled=true
+          --set 'redeploy.allowedNamespaces[0]=destroyer-test'
+
+      - name: Render Helm chart
+        run: >-
+          helm template destroyer charts/destroyer
+          --namespace destroyer-system
+          --set redeploy.enabled=true
+          --set 'redeploy.allowedNamespaces[0]=destroyer-test'
+
+      - name: Package Helm chart
+        run: helm package charts/destroyer --destination "${RUNNER_TEMP}"

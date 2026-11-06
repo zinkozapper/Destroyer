@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "pullPolicy": {"type": "string"},
+        "tag": {"type": "string"},
+        "digest": {"type": "string"}
+      },
+      "required": ["repository"]
+    },
+    "replicaCount": {"type": "integer", "minimum": 1},
+    "rbac": {
+      "type": "object",
+      "properties": {
+        "scope": {"enum": ["cluster"]}
+      },
+      "required": ["scope"]
+    },
+    "redeploy": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "dryRun": {"type": "boolean"},
+        "allowedNamespaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 63,
+            "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+          }
+        },
+        "excludedNamespaces": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "minAgeSeconds": {"type": "integer", "minimum": 0}
+      }
+    },
+    "maxBodyBytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+    "webhook": {
+      "type": "object",
+      "properties": {
+        "existingSecret": {"type": "string"},
+        "keys": {
+          "type": "object",
+          "properties": {
+            "token": {"type": "string"},
+            "teamsUrl": {"type": "string"},
+            "alertUrl": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+image:
+  repository: ghcr.io/zinkozapper/destroyer
+  pullPolicy: IfNotPresent
+  tag: ""
+  digest: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  # The token is mounted only when redeploy is enabled.
+  automount: true
+  annotations: {}
+  name: ""
+
+# Cluster RBAC is required when approved namespaces span the cluster.
+rbac:
+  scope: cluster
+
+# Deletion is disabled until explicitly enabled and allowlisted.
+redeploy:
+  enabled: false
+  dryRun: true
+  allowedNamespaces: []
+  excludedNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - neuvector
+  minAgeSeconds: 15
+
+webhook:
+  # Secret keys are optional. Missing keys leave the corresponding setting unset.
+  existingSecret: ""
+  keys:
+    token: WEBHOOK_TOKEN
+    teamsUrl: TEAMS_WEBHOOK_URL
+    alertUrl: ALERT_WEBHOOK_URL
+
+debug: false
+kubernetesTimeoutSeconds: 5
+maxBodyBytes: "1048576"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

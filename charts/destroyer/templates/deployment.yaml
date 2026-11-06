@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "destroyer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "destroyer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "destroyer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "destroyer.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "destroyer.serviceAccountName" . }}
+      automountServiceAccountToken: {{ and .Values.serviceAccount.automount .Values.redeploy.enabled }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: destroyer
+          image: {{ include "destroyer.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if .Values.webhook.existingSecret }}
+            - name: WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.webhook.existingSecret }}
+                  key: {{ .Values.webhook.keys.token }}
+                  optional: true
+            - name: TEAMS_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.webhook.existingSecret }}
+                  key: {{ .Values.webhook.keys.teamsUrl }}
+                  optional: true
+            - name: ALERT_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.webhook.existingSecret }}
+                  key: {{ .Values.webhook.keys.alertUrl }}
+                  optional: true
+            {{- end }}
+            - name: ENABLE_POD_REDEPLOY
+              value: {{ .Values.redeploy.enabled | quote }}
+            - name: REDEPLOY_DRY_RUN
+              value: {{ .Values.redeploy.dryRun | quote }}
+            - name: REDEPLOY_ALLOWED_NAMESPACES
+              value: {{ join "," .Values.redeploy.allowedNamespaces | quote }}
+            - name: REDEPLOY_EXCLUDED_NAMESPACES
+              value: {{ join "," .Values.redeploy.excludedNamespaces | quote }}
+            - name: REDEPLOY_MIN_AGE_SECONDS
+              value: {{ .Values.redeploy.minAgeSeconds | quote }}
+            - name: K8S_TIMEOUT_SECONDS
+              value: {{ .Values.kubernetesTimeoutSeconds | quote }}
+            - name: MAX_BODY_BYTES
+              value: {{ .Values.maxBodyBytes | quote }}
+            - name: DEBUG
+              value: {{ .Values.debug | quote }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

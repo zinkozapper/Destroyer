@@ -1,0 +1,12 @@
+destroyer-deployment.yaml
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+*.tgz
+# Local Helm overrides can contain registry details; keep example files tracked.
+values-dev.yaml
+values-rancher-dev.yaml
+values-rancher-dev.local.yaml
+values-*.local.yaml
+values-*.secret.yaml
