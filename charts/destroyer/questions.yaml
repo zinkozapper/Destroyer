@@ -1,0 +1,35 @@
+questions:
+  - variable: redeploy.enabled
+    label: Enable pod redeploy evaluation
+    description: Enables pod get/delete permissions. Keep this disabled until the namespace policy is configured.
+    type: boolean
+    group: Pod redeploy
+    show_subquestion_if: true
+    subquestions:
+      - variable: redeploy.dryRun
+        label: Dry run
+        description: Report eligible pods without deleting them. Keep enabled while validating the setup.
+        type: boolean
+      - variable: redeploy.allowedNamespaces
+        label: Approved namespaces
+        description: Namespaces where Destroyer may evaluate pods. Add only application namespaces you intend to protect.
+        type: listofstrings
+      - variable: redeploy.excludedNamespaces
+        label: Excluded namespaces
+        description: Namespaces always excluded from pod deletion, even if also approved.
+        type: listofstrings
+      - variable: redeploy.minAgeSeconds
+        label: Minimum pod age (seconds)
+        description: Ignore pods younger than this value.
+        type: int
+        min: 0
+  - variable: webhook.existingSecret
+    label: Existing webhook Secret
+    description: Select a Secret in the release namespace containing WEBHOOK_TOKEN and optional notification URLs.
+    type: reference_secret
+    group: Webhook and notifications
+  - variable: debug
+    label: Enable debug logging
+    description: Log detailed webhook decisions. Avoid leaving this enabled longer than needed.
+    type: boolean
+    group: Diagnostics

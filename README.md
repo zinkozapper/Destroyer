@@ -66,6 +66,9 @@ After the first release, set both the `destroyer` image and `charts/destroyer`
 GitHub Container Registry packages to public for unauthenticated installs and
 image pulls.
 
+To adjust chart settings through Rancher's Apps UI, install a chart version
+that includes the Rancher form and follow the [Rancher UI instructions](charts/destroyer/README.md#install-or-manage-it-in-rancher).
+
 For a Rancher dev cluster before the first release, build and push the image to
 a registry the cluster can pull from, then copy and edit the dev values file:
 
@@ -184,17 +187,49 @@ standard Python image instead; it does not use this built image.
 
 ## NeuVector setup
 
-Configure NeuVector to send security events to the Destroyer service. The exact console labels vary by NeuVector version, but the webhook should be a JSON security-event webhook pointing to the in-cluster URL above.
+NeuVector console names and navigation vary by version. In the policy and webhook settings, configure a JSON webhook destination for Destroyer, then select the workload groups and events that should send notifications.
 
-For policy rules, create groups that match the workload namespaces approved for deletion and attach response rules appropriate to your environment. Common examples include:
+### Configure the webhook
 
-| Event | Action |
+For the default Helm install, the internal service URL is:
+
+```text
+http://destroyer.destroyer-system.svc.cluster.local:8080/
+```
+
+If you installed Destroyer with a different Helm release name or namespace, use the matching service name and namespace. You can find the service with `kubectl get services -n <destroyer-namespace>`. The URL must be reachable from NeuVector inside the cluster; keep the Service internal rather than exposing the webhook publicly.
+
+Create a webhook destination with settings like these (labels may differ by version):
+
+| Setting | Value |
 | --- | --- |
-| `Process.Profile.Violation` | `webhook` |
-| `Container.Tunnel.Detected` | `webhook`, optionally `quarantine` |
-| `Container.Privilege.Escalation` | `webhook`, optionally `quarantine` |
+| Name | `Destroyer` or another descriptive name |
+| URL | The in-cluster Destroyer service URL above |
+| Type/format | JSON |
 
-Start with the least disruptive rule set, validate the generated alerts, and add rules only after confirming that legitimate workload behavior is not being treated as a compromise.
+If `WEBHOOK_TOKEN` is configured for Destroyer, NeuVector must send the matching `Authorization: Bearer <token>` header. If your NeuVector version cannot set custom webhook headers, leave `WEBHOOK_TOKEN` unset and restrict network access to the service with a NetworkPolicy instead. Test delivery before enabling any disruptive response actions.
+
+### Create groups and response rules
+
+Create one or more NeuVector groups whose criteria match only the workloads you want to monitor. For example, a namespace-based group could use a criterion like:
+
+```text
+namespace~^(app-a|app-b)$
+```
+
+Replace `app-a` and `app-b` with your own namespace names and use the matching criterion syntax for your NeuVector version. You can create separate groups for different applications or policies; avoid a catch-all group unless you intend to include every matching workload.
+
+Add response rules for the group(s) you selected and choose the events relevant to your environment. These are examples, not a required rule set:
+
+| Event trigger | Initial action | Notes |
+| --- | --- | --- |
+| `Process.Profile.Violation` | `webhook` | Sends the event to Destroyer. |
+| `Container.Tunnel.Detected` | `webhook` | Add `quarantine` only if desired and tested. |
+| `Container.Privilege.Escalation` | `webhook` | Add `quarantine` only if desired and tested. |
+
+Start with webhook-only actions, review the alerts and Destroyer logs, and add rules or quarantine only after checking for false positives. Sending a webhook does not by itself enable pod deletion: Destroyer must also have redeploy enabled and an appropriate namespace allowlist. Keep that allowlist aligned with the NeuVector groups, and leave dry-run enabled until behavior is verified.
+
+Destroyer runs under its own Kubernetes ServiceAccount in its deployment namespace; the Helm chart creates it by default. NeuVector does not use that account. When redeploy is enabled, the chart grants the account pod `get`/`delete` permissions cluster-wide, while Destroyer enforces its configured namespace allowlist. See [Permissions and security](#permissions-and-security).
 
 ## Namespace policy
 

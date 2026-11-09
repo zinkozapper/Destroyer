@@ -33,6 +33,30 @@ helm upgrade --install destroyer \
 The chart rejects `redeploy.enabled=true` without an allowlist. After validating
 the dry-run decisions, set `redeploy.dryRun=false` to allow deletion.
 
+## Install or manage it in Rancher
+
+Rancher v2.9 or newer supports OCI Helm chart repositories. In the target
+cluster, add an OCI repository at
+`oci://ghcr.io/zinkozapper/charts` under **Apps → Repositories**. Once it is
+active, find **Destroyer** under **Apps → Charts** and install or upgrade it
+from Rancher. Choose the `destroyer-system` namespace and a release name of
+`destroyer` to use the default service URL. The Rancher form exposes the
+redeploy policy, debug logging, and an optional existing webhook Secret.
+
+Create the namespace and any webhook Secret before installing if you want to
+select one in the form. The Secret must be in the release namespace. Keep
+`redeploy.enabled` off until you configure the approved namespace list; when
+you enable it, dry-run remains on by default. Rancher shows the Secret name,
+not its contents. For private GHCR packages, configure registry credentials in
+Rancher and image pull credentials for the workload.
+
+The form is included in chart releases published after this change; the already
+published `0.1.0` chart does not include it. Publish and select a newer chart
+version (for example, `0.1.1`) to use the Rancher form. An existing release
+installed with standalone Helm may not be managed by Rancher's Apps UI; avoid
+installing a second copy with the same release name until you have planned how
+to migrate or manage that release.
+
 After the first release, make both the `destroyer` image and `charts/destroyer`
 packages public in GitHub Container Registry for unauthenticated Helm installs
 and image pulls. Otherwise, configure registry credentials and `imagePullSecrets`.
@@ -42,6 +66,9 @@ Configure NeuVector to send JSON webhooks to:
 ```bash
 http://destroyer.destroyer-system.svc.cluster.local:8080/
 ```
+
+For generic instructions on creating NeuVector groups and response rules, see
+the [NeuVector setup guide](../../README.md#neuvector-setup).
 
 When redeploy is enabled, the chart uses a ClusterRole and ClusterRoleBinding
 with `get` and `delete` access to pods cluster-wide. Destroyer enforces
